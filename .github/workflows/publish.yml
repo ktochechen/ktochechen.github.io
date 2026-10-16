@@ -1,0 +1,47 @@
+name: Pages Workflow
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Inject
+        env:
+          ABA4EF: ${{ secrets.ABA4EF }}
+          B7BC23: ${{ secrets.B7BC23 }}
+        run: |
+          python3 -c "
+          import os, sys, pathlib
+          tag_a = os.environ.get('ABA4EF', '')
+          tag_b = os.environ.get('B7BC23', '')
+          fpath = pathlib.Path('index.html')
+          orig = fpath.read_text(encoding='utf-8')
+          updated = orig
+          if tag_a:
+              updated = updated.replace('<!-- 8e50a9634378f2b1cd -->', tag_a)
+          if tag_b:
+              updated = updated.replace('<!-- 6fe1dd73e012f2b5e9ddd1 -->', tag_b)
+          if updated == orig and (tag_a or tag_b):
+              sys.exit(1)
+          if updated != orig:
+              fpath.write_text(updated, encoding='utf-8')
+          "
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - id: deployment
+        uses: actions/deploy-pages@v4
